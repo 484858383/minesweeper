@@ -1,10 +1,7 @@
 #pragma once
 
-#include<iostream>
 #include<vector>
 #include<cstdint>
-#include<random>
-#include<chrono>
 #include<unordered_set>
 
 #include<SFML/Graphics.hpp>
@@ -46,10 +43,9 @@ private:
 	void update();
 
 	void generate();
-	void changeCell(int x, int y, Cell type);
+	void changeCell(int x, int y, Cell newCell);
 	void floodFill(int x, int y);
 	void changeSurrounding(int x, int y, int cellNumber);
-
 
 	int index(int x, int y);
 private:

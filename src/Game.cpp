@@ -1,5 +1,9 @@
 #include "Game.h"
 
+#include<iostream>
+#include<random>
+#include<chrono>
+
 namespace
 {
 	std::vector<sf::Vector2u> quadTexcoords = {{0, 0}, {16, 0}, {16, 16}, {0, 16}}; //top left -> top right ccw
@@ -39,8 +43,6 @@ Game::Game()
 
 void Game::run()
 {
-	sf::RectangleShape r({200, 200});
-	r.setTexture(&m_gameTexture);
 	while(m_window.isOpen())
 	{
 		handleEvents();
@@ -96,6 +98,9 @@ void Game::update()
 			return;
 		}
 
+		if(currentCell == Cell::mine)
+			std::cout << "loss\n";
+
 		if(currentCell == Cell::empty)
 			floodFill(mousePos.x, mousePos.y);
 		else
@@ -103,11 +108,11 @@ void Game::update()
 	}
 	if(sf::Mouse::isButtonPressed(sf::Mouse::Right) && c.getElapsedTime().asSeconds() >= 0.15f)
 	{
+		c.restart();
 		auto currentCell = m_cells[index(mousePos.x, mousePos.y)];
 		auto playerCell = m_playerCells[index(mousePos.x, mousePos.y)];
 
 		changeCell(mousePos.x, mousePos.y, playerCell == Cell::flag ? Cell::blank : Cell::flag);
-		c.restart();
 	}
 	
 	if(m_flagCount == m_mineCount)
@@ -136,32 +141,33 @@ void Game::generate()
 		}
 	}
 		
-		
+	//add numbers
 	for(int y = 0; y < m_size.y; y++)
 	for(int x = 0; x < m_size.x; x++)
 	{
 		if(m_cells[index(x, y)] == Cell::mine)
 			continue;
 
-		//check neighbours
+		//for each neighbour
 		int mineCount = 0;
 		for(int j = -1; j < 2; j++)
-			for(int i = -1; i < 2; i++)
-			{
-				int Y = j + y;
-				if(Y < 0 || Y >= m_size.y)
-					continue;
+		for(int i = -1; i < 2; i++)
+		{
+			int Y = j + y;
+			if(Y < 0 || Y >= m_size.y)
+				continue;
 
-				int X = i + x;
-				if(X < 0 || X >= m_size.x)
-					continue;
+			int X = i + x;
+			if(X < 0 || X >= m_size.x)
+				continue;
 
-				if(i == 0 && j == 0)
-					continue;
+			if(i == 0 && j == 0)
+				continue;
 
-				if(m_cells[index(X, Y)] == Cell::mine)
-					++mineCount;
-			}
+			if(m_cells[index(X, Y)] == Cell::mine)
+				++mineCount;
+		}
+
 		m_cells[index(x, y)] = static_cast<Cell>(mineCount);
 	}
 
@@ -170,44 +176,45 @@ void Game::generate()
 	for(int y = 0; y < m_size.y; y++)
 	for(int x = 0; x < m_size.x; x++)
 	{
-		int value = static_cast<int>(Cell::blank);
+		int textureOffset = static_cast<int>(Cell::blank);
 		sf::Vector2f position(x, y);
 
 		sf::Vertex* vertex = &m_cellsVAO[index(x, y) * 4];
 		for(int i = 0; i < 4; i++)
 		{
 			vertex[i].position  = (quadSize * position) + quadTemplate[i];
-			vertex[i].texCoords.x = quadTexcoords[i].x + value * 16;
+			vertex[i].texCoords.x = quadTexcoords[i].x + textureOffset * 16;
 			vertex[i].texCoords.y = quadTexcoords[i].y;
 		}
 	}
 }
 
-void Game::changeCell(int x, int y, Cell type)
+void Game::changeCell(int x, int y, Cell newCell)
 {
 	static std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{quadSize, 0.f},{quadSize, quadSize},{0.f, quadSize}}; //top left -> bottom left cw
 
-	if(type == Cell::flag && m_playerCells[index(x, y)] != Cell::flag)
+	if(newCell == Cell::flag && m_playerCells[index(x, y)] != Cell::flag)
 	{
 		m_flagCount++;
 		m_flagPositions.insert({x, y});
 	}
 		
-	if(m_playerCells[index(x, y)] == Cell::flag && type != Cell::flag)
+	if(m_playerCells[index(x, y)] == Cell::flag && newCell != Cell::flag)
 	{
 		m_flagCount--;
 		m_flagPositions.erase(m_flagPositions.find({x, y}));
 	}
 
 	sf::Vector2f position(x, y);
-	int value = static_cast<int>(type);
-	m_playerCells[index(x, y)] = type;
+
+	int textureOffset = static_cast<int>(newCell);
+	m_playerCells[index(x, y)] = newCell;
 
 	sf::Vertex* vertex = &m_cellsVAO[index(x, y) * 4];
 	for(int i = 0; i < 4; i++)
 	{
 		vertex[i].position = (quadSize * position) + quadTemplate[i];
-		vertex[i].texCoords.x = quadTexcoords[i].x + value * 16;
+		vertex[i].texCoords.x = quadTexcoords[i].x + textureOffset * 16;
 		vertex[i].texCoords.y = quadTexcoords[i].y;
 	}
 }
@@ -219,85 +226,93 @@ void Game::floodFill(int x, int y)
 	{
 		changeCell(x, y, cell);
 
+		//for each neighbour
 		for(int j = -1; j < 2; j++)
-			for(int i = -1; i < 2; i++)
-			{
-				int Y = j + y;
-				if(Y < 0 || Y >= m_size.y)
-					continue;
+		for(int i = -1; i < 2; i++)
+		{
+			int Y = j + y;
+			if(Y < 0 || Y >= m_size.y)
+				continue;
 
-				int X = i + x;
-				if(X < 0 || X >= m_size.x)
-					continue;
+			int X = i + x;
+			if(X < 0 || X >= m_size.x)
+				continue;
 
-				if(i == 0 && j == 0)
-					continue;
-				if(cell != Cell::empty)
-					return;
+			if(i == 0 && j == 0)
+				continue;
+			if(cell != Cell::empty)
+				return;
 
-				floodFill(X, Y);
-			}
+			floodFill(X, Y);
+		}
 	}
 }
 
 void Game::changeSurrounding(int x, int y, int cellNumber)
 {
+	///clears all neighbouring cells when all correct flags are placed,
+	///have to count up surrounding flags to check for mistakes first
+	//for each neighbour
 	int flagCount = 0;
 	for(int j = -1; j < 2; j++)
-		for(int i = -1; i < 2; i++)
+	for(int i = -1; i < 2; i++)
+	{
+		int Y = j + y;
+		if(Y < 0 || Y >= m_size.y)
+			continue;
+
+		int X = i + x;
+		if(X < 0 || X >= m_size.x)
+			continue;
+
+		if(i == 0 && j == 0)
+			continue;
+
+		auto cell = m_cells[index(X, Y)];
+		auto playerCell = m_playerCells[index(X, Y)];
+
+		if(cell == Cell::mine && playerCell != Cell::flag)
 		{
-			int Y = j + y;
-			if(Y < 0 || Y >= m_size.y)
-				continue;
-
-			int X = i + x;
-			if(X < 0 || X >= m_size.x)
-				continue;
-
-			if(i == 0 && j == 0)
-				continue;
-			auto cell = m_cells[index(X, Y)];
-			auto playerCell = m_playerCells[index(X, Y)];
-
-			if(cell == Cell::mine && playerCell != Cell::flag)
-			{
-				std::cout << "loss";
-				return;
-			}
-
-			if(playerCell == Cell::flag)
-				flagCount++;
+			std::cout << "loss\n";
+			return;
 		}
+
+		if(playerCell == Cell::flag)
+			flagCount++;
+	}
 
 	if(flagCount != cellNumber)
 	{
-		std::cout << "loss";
+		std::cout << "loss\n";
 		return;
 	}
 
+	//for each neighbour
 	for(int j = -1; j < 2; j++)
-		for(int i = -1; i < 2; i++)
-		{
-			int Y = j + y;
-			if(Y < 0 || Y >= m_size.y)
-				continue;
+	for(int i = -1; i < 2; i++)
+	{
+		int Y = j + y;
+		if(Y < 0 || Y >= m_size.y)
+			continue;
 
-			int X = i + x;
-			if(X < 0 || X >= m_size.x)
-				continue;
+		int X = i + x;
+		if(X < 0 || X >= m_size.x)
+			continue;
 
-			if(i == 0 && j == 0)
-				continue;
-			auto cell = m_cells[index(X, Y)];
-			auto playerCell = m_playerCells[index(X, Y)];
+		if(i == 0 && j == 0)
+			continue;
 
-			if(playerCell == Cell::flag)
-				continue;
-			if(cell == Cell::empty)
-				floodFill(X, Y);
-			else
-				changeCell(X, Y, cell);
-		}
+		auto cell = m_cells[index(X, Y)];
+		auto playerCell = m_playerCells[index(X, Y)];
+
+		if(playerCell == Cell::flag)
+			continue;
+
+		if(cell == Cell::empty)
+			floodFill(X, Y);
+		else
+			changeCell(X, Y, cell);
+	}
 }
 
 int Game::index(int x, int y)
