@@ -3,6 +3,8 @@
 #include<iostream>
 #include<vector>
 #include<cstdint>
+#include<random>
+#include<chrono>
 
 #include<SFML/Graphics.hpp>
 
@@ -27,7 +29,8 @@ private:
 	void update();
 
 	void generate();
-	void changeCell(int x, int y);
+	void changeCell(int x, int y, Cell type);
+	void floodFill(int x, int y);
 
 
 	int index(int x, int y);

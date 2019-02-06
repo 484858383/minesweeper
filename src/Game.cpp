@@ -23,17 +23,17 @@ Game::Game()
 	///temp for now
 	m_size = {10, 10};
 	m_cells.reserve(m_size.x * m_size.y);
+	m_playerCells.reserve(m_size.x * m_size.y);
 	m_cellsVAO.resize(m_size.x * m_size.y * 4);
 
 	for(int y = 0; y < m_size.y; y++)
 	for(int x = 0; x < m_size.x; x++)
 	{
-		m_cells.push_back(Cell::blank);
-		m_playerCells.push_back(Cell::mine);
+		m_cells.push_back(Cell::empty);
+		m_playerCells.push_back(Cell::blank);
 	}
 
 	generate();
-	changeCell(1, 0);
 }
 
 void Game::run()
@@ -83,22 +83,72 @@ void Game::update()
 	mousePos.x = std::max(std::min(mousePos.x, m_size.x -1), 0);
 	mousePos.y = std::max(std::min(mousePos.y, m_size.y -1), 0);
 
-	if(sf::Mouse::isButtonPressed(sf::Mouse::Left) && c.getElapsedTime().asSeconds() >= 0.00f)
+	if(sf::Mouse::isButtonPressed(sf::Mouse::Left) && c.getElapsedTime().asSeconds() >= 0.15f)
 	{
-		changeCell(mousePos.x, mousePos.y);
+		auto currentCell = m_cells[index(mousePos.x, mousePos.y)];
+		auto playerCell  = m_playerCells[index(mousePos.x, mousePos.y)];
+
+		if(currentCell == Cell::empty)
+			floodFill(mousePos.x, mousePos.y);
+		else
+			changeCell(mousePos.x, mousePos.y, playerCell == Cell::flag ? Cell::blank : currentCell);
 		c.restart();
 	}
+	if(sf::Mouse::isButtonPressed(sf::Mouse::Right) && c.getElapsedTime().asSeconds() >= 0.15f)
+	{
+		auto currentCell = m_cells[index(mousePos.x, mousePos.y)];
+		auto playerCell = m_playerCells[index(mousePos.x, mousePos.y)];
+
+		changeCell(mousePos.x, mousePos.y, playerCell == Cell::flag ? Cell::blank : Cell::flag);
+		c.restart();
+	}
+		
 }
 
 void Game::generate()
 {
+	std::mt19937 rng;
+	rng.seed(std::time(nullptr));
+	std::uniform_int_distribution<> dist(0, 9);
+
+	//add mines
+	for(auto& cell : m_cells)
+		cell = dist(rng) == 0 ? Cell::mine : Cell::empty;
+		
+	for(int y = 0; y < m_size.y; y++)
+	for(int x = 0; x < m_size.x; x++)
+	{
+		if(m_cells[index(x, y)] == Cell::mine)
+			continue;
+
+		//check neighbours
+		int mineCount = 0;
+		for(int j = -1; j < 2; j++)
+			for(int i = -1; i < 2; i++)
+			{
+				int Y = j + y;
+				if(Y < 0 || Y >= m_size.y)
+					continue;
+
+				int X = i + x;
+				if(X < 0 || X >= m_size.x)
+					continue;
+
+				if(i == 0 && j == 0)
+					continue;
+
+				if(m_cells[index(X, Y)] == Cell::mine)
+					++mineCount;
+			}
+		m_cells[index(x, y)] = static_cast<Cell>(mineCount);
+	}
+
+	//texture
 	static std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{quadSize, 0.f},{quadSize, quadSize},{0.f, quadSize}}; //top left -> bottom left cw
 	for(int y = 0; y < m_size.y; y++)
 	for(int x = 0; x < m_size.x; x++)
 	{
-		auto cell = m_cells[index(x, y)];
-		int value = static_cast<int>(cell);
-
+		int value = static_cast<int>(Cell::blank);
 		sf::Vector2f position(x, y);
 
 		sf::Vertex* vertex = &m_cellsVAO[index(x, y) * 4];
@@ -111,12 +161,13 @@ void Game::generate()
 	}
 }
 
-void Game::changeCell(int x, int y)
+void Game::changeCell(int x, int y, Cell type)
 {
 	static std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{quadSize, 0.f},{quadSize, quadSize},{0.f, quadSize}}; //top left -> bottom left cw
 
-	sf::Vector2f position = {static_cast<float>(x), static_cast<float>(y)};
-	int value = static_cast<int>(m_playerCells[index(x, y)]);
+	sf::Vector2f position(x, y);
+	int value = static_cast<int>(type);
+	m_playerCells[index(x, y)] = type;
 
 	sf::Vertex* vertex = &m_cellsVAO[index(x, y) * 4];
 	for(int i = 0; i < 4; i++)
@@ -124,6 +175,34 @@ void Game::changeCell(int x, int y)
 		vertex[i].position = (quadSize * position) + quadTemplate[i];
 		vertex[i].texCoords.x = quadTexcoords[i].x + value * 16;
 		vertex[i].texCoords.y = quadTexcoords[i].y;
+	}
+}
+
+void Game::floodFill(int x, int y)
+{
+	auto cell = m_cells[index(x, y)];
+	if(cell != Cell::mine && m_playerCells[index(x, y)] == Cell::blank)
+	{
+		changeCell(x, y, cell);
+
+		for(int j = -1; j < 2; j++)
+			for(int i = -1; i < 2; i++)
+			{
+				int Y = j + y;
+				if(Y < 0 || Y >= m_size.y)
+					continue;
+
+				int X = i + x;
+				if(X < 0 || X >= m_size.x)
+					continue;
+
+				if(i == 0 && j == 0)
+					continue;
+				if(cell != Cell::empty)
+					return;
+
+				floodFill(X, Y);
+			}
 	}
 }
 
