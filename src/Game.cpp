@@ -11,6 +11,7 @@ namespace
 Game::Game()
 {
 	m_window.create(sf::VideoMode(width, height), "minesweeper", sf::Style::Close);
+	m_window.setFramerateLimit(60);
 
 	if(!m_gameTexture.loadFromFile("res/minesweeper.png"))
 		throw std::runtime_error("failed to load textures");
