@@ -31,6 +31,7 @@ private:
 	void generate();
 	void changeCell(int x, int y, Cell type);
 	void floodFill(int x, int y);
+	void changeSurrounding(int x, int y, int cellNumber);
 
 
 	int index(int x, int y);

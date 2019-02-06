@@ -85,14 +85,20 @@ void Game::update()
 
 	if(sf::Mouse::isButtonPressed(sf::Mouse::Left) && c.getElapsedTime().asSeconds() >= 0.15f)
 	{
+		c.restart();
 		auto currentCell = m_cells[index(mousePos.x, mousePos.y)];
 		auto playerCell  = m_playerCells[index(mousePos.x, mousePos.y)];
+
+		if(playerCell >= Cell::one && playerCell <= Cell::seven && sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
+		{
+			changeSurrounding(mousePos.x, mousePos.y, static_cast<int>(playerCell));
+			return;
+		}
 
 		if(currentCell == Cell::empty)
 			floodFill(mousePos.x, mousePos.y);
 		else
 			changeCell(mousePos.x, mousePos.y, playerCell == Cell::flag ? Cell::blank : currentCell);
-		c.restart();
 	}
 	if(sf::Mouse::isButtonPressed(sf::Mouse::Right) && c.getElapsedTime().asSeconds() >= 0.15f)
 	{
@@ -204,6 +210,66 @@ void Game::floodFill(int x, int y)
 				floodFill(X, Y);
 			}
 	}
+}
+
+void Game::changeSurrounding(int x, int y, int cellNumber)
+{
+	int flagCount = 0;
+	for(int j = -1; j < 2; j++)
+		for(int i = -1; i < 2; i++)
+		{
+			int Y = j + y;
+			if(Y < 0 || Y >= m_size.y)
+				continue;
+
+			int X = i + x;
+			if(X < 0 || X >= m_size.x)
+				continue;
+
+			if(i == 0 && j == 0)
+				continue;
+			auto cell = m_cells[index(X, Y)];
+			auto playerCell = m_playerCells[index(X, Y)];
+
+			if(cell == Cell::mine && playerCell != Cell::flag)
+			{
+				std::cout << "loss";
+				return;
+			}
+
+			if(playerCell == Cell::flag)
+				flagCount++;
+		}
+
+	if(flagCount != cellNumber)
+	{
+		std::cout << "loss";
+		return;
+	}
+
+	for(int j = -1; j < 2; j++)
+		for(int i = -1; i < 2; i++)
+		{
+			int Y = j + y;
+			if(Y < 0 || Y >= m_size.y)
+				continue;
+
+			int X = i + x;
+			if(X < 0 || X >= m_size.x)
+				continue;
+
+			if(i == 0 && j == 0)
+				continue;
+			auto cell = m_cells[index(X, Y)];
+			auto playerCell = m_playerCells[index(X, Y)];
+
+			if(playerCell == Cell::flag)
+				continue;
+			if(cell == Cell::empty)
+				floodFill(X, Y);
+			else
+				changeCell(X, Y, cell);
+		}
 }
 
 int Game::index(int x, int y)
