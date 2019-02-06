@@ -108,7 +108,15 @@ void Game::update()
 		changeCell(mousePos.x, mousePos.y, playerCell == Cell::flag ? Cell::blank : Cell::flag);
 		c.restart();
 	}
-		
+	
+	if(m_flagCount == m_mineCount)
+	{
+		for(auto& position : m_flagPositions)
+			if(m_cells[index(position.x, position.y)] != Cell::mine)
+				return;
+		std::cout << "win!";
+	}
+
 }
 
 void Game::generate()
@@ -119,7 +127,14 @@ void Game::generate()
 
 	//add mines
 	for(auto& cell : m_cells)
-		cell = dist(rng) == 0 ? Cell::mine : Cell::empty;
+	{
+		if(dist(rng) == 0)
+		{
+			cell = Cell::mine;
+			m_mineCount++;
+		}
+	}
+		
 		
 	for(int y = 0; y < m_size.y; y++)
 	for(int x = 0; x < m_size.x; x++)
@@ -170,6 +185,18 @@ void Game::generate()
 void Game::changeCell(int x, int y, Cell type)
 {
 	static std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{quadSize, 0.f},{quadSize, quadSize},{0.f, quadSize}}; //top left -> bottom left cw
+
+	if(type == Cell::flag && m_playerCells[index(x, y)] != Cell::flag)
+	{
+		m_flagCount++;
+		m_flagPositions.insert({x, y});
+	}
+		
+	if(m_playerCells[index(x, y)] == Cell::flag && type != Cell::flag)
+	{
+		m_flagCount--;
+		m_flagPositions.erase(m_flagPositions.find({x, y}));
+	}
 
 	sf::Vector2f position(x, y);
 	int value = static_cast<int>(type);

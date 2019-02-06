@@ -5,6 +5,7 @@
 #include<cstdint>
 #include<random>
 #include<chrono>
+#include<unordered_set>
 
 #include<SFML/Graphics.hpp>
 
@@ -17,6 +18,22 @@ enum class Cell : int8_t
 	flag = 10,
 	mine = 11,
 };
+
+namespace std
+{
+	template <>
+	struct hash<sf::Vector2i>
+	{
+		std::size_t operator()(const sf::Vector2i& key) const
+		{
+			using std::size_t;
+			using std::hash;
+			//cantor pairing function
+			return static_cast<std::size_t>(0.5) * (key.x + key.y) * (key.x * key.y + 1) + key.y;
+		}
+	};
+}
+
 
 class Game
 {
@@ -44,4 +61,8 @@ private:
 
 	std::vector<Cell> m_cells;
 	std::vector<Cell> m_playerCells;
+	std::unordered_set<sf::Vector2i> m_flagPositions;
+
+	int m_flagCount = 0;
+	int m_mineCount = 0;
 };
