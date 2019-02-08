@@ -13,6 +13,7 @@ public:
 
     void update(const sf::RenderWindow& window);
     void draw(sf::RenderTarget& render);
+	void operator()();
 
     void setPosition(const sf::Vector2f& pos);
 private:

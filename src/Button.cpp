@@ -50,6 +50,11 @@ void Button::draw(sf::RenderTarget& render)
     render.draw(m_text);
 }
 
+void Button::operator()()
+{
+	m_function();
+}
+
 void Button::setPosition(const sf::Vector2f& pos)
 {
     float ratio = m_size.x / m_size.y;

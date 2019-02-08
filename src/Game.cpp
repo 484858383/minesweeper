@@ -22,25 +22,38 @@ Game::Game()
 	if(!m_font.loadFromFile("res/pixel.ttf"))
 		throw std::runtime_error("failed to load font");
 
-	m_cellsVAO.setPrimitiveType(sf::Quads);
+	m_mineText.setFont(m_font);
+	m_mineText.setString("mines: ");
+	m_mineText.setCharacterSize(48);
+	m_mineText.setOutlineThickness(2.f);
+	m_mineText.setFillColor(sf::Color::White);
+	m_mineText.setOutlineColor(sf::Color::Black);
+	m_mineText.setPosition(728, 32);
 
-	///temp for now {30, 24};, 30, {16, 16}, 45, {10, 10}, 72
-	m_size = {30, 16};
+	m_timeText.setFont(m_font);
+	m_timeText.setString("time: ");
+	m_timeText.setCharacterSize(48);
+	m_timeText.setOutlineThickness(2.f);
+	m_timeText.setFillColor(sf::Color::White);
+	m_timeText.setOutlineColor(sf::Color::Black);
+	m_timeText.setPosition(728, 0);
+
+	m_cellsVAO.setPrimitiveType(sf::Quads);
 
 	//allocate enough memory for largest size
 	m_cells.reserve(30 * 24);
 	m_playerCells.reserve(30 * 24);
 
-	generate();
-
-	m_buttons.emplace_back(std::make_unique<Button>("Beginner", sf::Vector2f(128, 32), [&]() {m_size = {10, 10}; m_quadSize = 72.f; generate(); }));
+	m_buttons.emplace_back(std::make_unique<Button>("Beginner", sf::Vector2f(128, 32), [&]() {m_size = {10, 10}; m_quadSize = 72.f; m_mineDensity = 13; m_difficulty = 0; generate(); }));
 	m_buttons.back()->setPosition({728, 672});
 
-	m_buttons.emplace_back(std::make_unique<Button>("Intermediate", sf::Vector2f(128, 32), [&]() {m_size = {16, 16}; m_quadSize = 45.f; generate(); }));
+	m_buttons.emplace_back(std::make_unique<Button>("Intermediate", sf::Vector2f(128, 32), [&]() {m_size = {16, 16}; m_quadSize = 45.f; m_mineDensity = 50; m_difficulty = 1; generate(); }));
 	m_buttons.back()->setPosition({860, 672});
 
-	m_buttons.emplace_back(std::make_unique<Button>("Expert", sf::Vector2f(128, 32), [&]() {m_size = {30, 24}; m_quadSize = 30.f; generate(); }));
+	m_buttons.emplace_back(std::make_unique<Button>("Expert", sf::Vector2f(128, 32), [&]() {m_size = {30, 24}; m_quadSize = 30.f; m_mineDensity = 100; m_difficulty = 2; generate(); }));
 	m_buttons.back()->setPosition({992, 672});
+
+	(*m_buttons[m_difficulty])(); //dereference ->> call () operator
 }
 
 void Game::run()
@@ -51,24 +64,50 @@ void Game::run()
 	bg.setOutlineColor(sf::Color::Black);
 	bg.setOutlineThickness(2.f);
 
+	bool stop = false;
 	while(m_window.isOpen())
 	{
 		handleEvents();
 
-		m_window.clear();
+		if(sf::Keyboard::isKeyPressed(sf::Keyboard::R))
+		{
+			(*m_buttons[m_difficulty])();
+			stop = false;
+		}
 
 		if(!m_loss && !m_win)
 			update();
 
+		if(m_loss && !stop)
+		{
+			for(int y = 0; y < m_size.y; y++)
+			for(int x = 0; x < m_size.x; x++)
+				changeCell(x, y, m_cells[index(x, y)]);
+			stop = true;
+			std::cout << "you lose, press R to play again\n";
+		}
+
+		if(m_win && !stop)
+		{
+			for(int y = 0; y < m_size.y; y++)
+			for(int x = 0; x < m_size.x; x++)
+				changeCell(x, y, m_cells[index(x, y)]);
+			stop = true;
+			std::cout << "you win, press R to play again\n";
+		}
+
 		for(auto& button : m_buttons)
 			button->update(m_window);
 
+		m_window.clear();
 		m_window.draw(m_cellsVAO, &m_gameTexture);
 		m_window.draw(bg);
 		
 		for(auto& button : m_buttons)
 			button->draw(m_window);
 
+		m_window.draw(m_mineText);
+		m_window.draw(m_timeText);
 		m_window.display();
 	}
 }
@@ -102,6 +141,9 @@ void Game::update()
 
 	mousePos.x = std::max(std::min(mousePos.x, m_size.x -1), 0);
 	mousePos.y = std::max(std::min(mousePos.y, m_size.y -1), 0);
+
+	if(mousePos.x > m_size.x - 1)
+		return;
 
 	if(sf::Mouse::isButtonPressed(sf::Mouse::Left) && c.getElapsedTime().asSeconds() >= 0.15f)
 	{
@@ -143,13 +185,16 @@ void Game::update()
 		m_win = true;
 	}
 
+	m_mineText.setString("mines: " + std::to_string(m_mineCount >= m_flagCount ? m_mineCount - m_flagCount : 0));
+	m_timeText.setString("time: " + std::to_string(static_cast<int>(m_clock.getElapsedTime().asSeconds())));
 }
 
 void Game::generate()
 {
 	std::mt19937 rng;
 	rng.seed(std::time(nullptr));
-	std::uniform_int_distribution<> dist(0, 9);
+	std::uniform_int_distribution<> xRand(0, m_size.x - 1);
+	std::uniform_int_distribution<> yRand(0, m_size.y - 1);
 
 	m_cells.clear();
 	m_playerCells.clear();
@@ -163,20 +208,25 @@ void Game::generate()
 	m_cellsVAO.resize(m_size.x * m_size.y * 4);
 
 	for(int y = 0; y < m_size.y; y++)
-		for(int x = 0; x < m_size.x; x++)
-		{
-			m_cells.push_back(Cell::empty);
-			m_playerCells.push_back(Cell::blank);
-		}
+	for(int x = 0; x < m_size.x; x++)
+	{
+		m_cells.push_back(Cell::empty);
+		m_playerCells.push_back(Cell::blank);
+	}
 
 	//add mines
-	for(auto& cell : m_cells)
+	while(m_mineCount < m_mineDensity)
 	{
-		if(dist(rng) > 6)
-		{
-			cell = Cell::mine;
-			++m_mineCount;
-		}
+		int x = xRand(rng);
+		int y = yRand(rng);
+
+		auto& cell = m_cells[index(x, y)];
+
+		if(cell != Cell::empty)
+			continue;
+
+		cell = Cell::mine;
+		++m_mineCount;
 	}
 		
 	//add numbers

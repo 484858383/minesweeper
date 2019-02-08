@@ -58,6 +58,10 @@ private:
 	sf::Texture m_gameTexture;
 	sf::Font m_font;
 
+	sf::Text m_mineText;
+	sf::Text m_timeText;
+	sf::Clock m_clock;
+
 	std::vector<Cell> m_cells;
 	std::vector<Cell> m_playerCells;
 	std::unordered_set<sf::Vector2i> m_flagPositions;
@@ -66,8 +70,10 @@ private:
 
 	float m_quadSize = 72.f;
 
+	int m_difficulty = 0;
 	int m_flagCount = 0;
 	int m_mineCount = 0;
+	int m_mineDensity = 15;
 
 	bool m_loss = false;
 	bool m_win = false;
