@@ -112,7 +112,10 @@ void Game::update()
 		auto currentCell = m_cells[index(mousePos.x, mousePos.y)];
 		auto playerCell = m_playerCells[index(mousePos.x, mousePos.y)];
 
-		changeCell(mousePos.x, mousePos.y, playerCell == Cell::flag ? Cell::blank : Cell::flag);
+		if(playerCell == Cell::flag)
+			changeCell(mousePos.x, mousePos.y, Cell::blank);
+		else if(playerCell == Cell::blank)
+			changeCell(mousePos.x, mousePos.y, Cell::flag);
 	}
 	
 	if(m_flagCount == m_mineCount)
