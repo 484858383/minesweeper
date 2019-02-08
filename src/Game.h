@@ -1,10 +1,13 @@
 #pragma once
 
 #include<vector>
+#include<memory>
 #include<cstdint>
 #include<unordered_set>
 
 #include<SFML/Graphics.hpp>
+
+#include"Button.h"
 
 enum class Cell : int8_t
 {
@@ -59,6 +62,13 @@ private:
 	std::vector<Cell> m_playerCells;
 	std::unordered_set<sf::Vector2i> m_flagPositions;
 
+	std::vector<std::unique_ptr<Button>> m_buttons;
+
+	float m_quadSize = 72.f;
+
 	int m_flagCount = 0;
 	int m_mineCount = 0;
+
+	bool m_loss = false;
+	bool m_win = false;
 };

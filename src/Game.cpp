@@ -9,7 +9,6 @@ namespace
 	std::vector<sf::Vector2u> quadTexcoords = {{0, 0}, {16, 0}, {16, 16}, {0, 16}}; //top left -> top right ccw
 	constexpr unsigned width = 1280;
 	constexpr unsigned height = 720;
-	constexpr float quadSize = 64.f;
 }
 
 Game::Game()
@@ -25,32 +24,50 @@ Game::Game()
 
 	m_cellsVAO.setPrimitiveType(sf::Quads);
 
-	///temp for now
-	m_size = {10, 10};
-	m_cells.reserve(m_size.x * m_size.y);
-	m_playerCells.reserve(m_size.x * m_size.y);
-	m_cellsVAO.resize(m_size.x * m_size.y * 4);
+	///temp for now {30, 24};, 30, {16, 16}, 45, {10, 10}, 72
+	m_size = {30, 16};
 
-	for(int y = 0; y < m_size.y; y++)
-	for(int x = 0; x < m_size.x; x++)
-	{
-		m_cells.push_back(Cell::empty);
-		m_playerCells.push_back(Cell::blank);
-	}
+	//allocate enough memory for largest size
+	m_cells.reserve(30 * 24);
+	m_playerCells.reserve(30 * 24);
 
 	generate();
+
+	m_buttons.emplace_back(std::make_unique<Button>("Beginner", sf::Vector2f(128, 32), [&]() {m_size = {10, 10}; m_quadSize = 72.f; generate(); }));
+	m_buttons.back()->setPosition({728, 672});
+
+	m_buttons.emplace_back(std::make_unique<Button>("Intermediate", sf::Vector2f(128, 32), [&]() {m_size = {16, 16}; m_quadSize = 45.f; generate(); }));
+	m_buttons.back()->setPosition({860, 672});
+
+	m_buttons.emplace_back(std::make_unique<Button>("Expert", sf::Vector2f(128, 32), [&]() {m_size = {30, 24}; m_quadSize = 30.f; generate(); }));
+	m_buttons.back()->setPosition({992, 672});
 }
 
 void Game::run()
 {
+	sf::RectangleShape bg({558, 716});
+	bg.setPosition(720, 2);
+	bg.setFillColor(sf::Color(220, 220, 220, 255));
+	bg.setOutlineColor(sf::Color::Black);
+	bg.setOutlineThickness(2.f);
+
 	while(m_window.isOpen())
 	{
 		handleEvents();
 
 		m_window.clear();
 
-		update();
+		if(!m_loss && !m_win)
+			update();
+
+		for(auto& button : m_buttons)
+			button->update(m_window);
+
 		m_window.draw(m_cellsVAO, &m_gameTexture);
+		m_window.draw(bg);
+		
+		for(auto& button : m_buttons)
+			button->draw(m_window);
 
 		m_window.display();
 	}
@@ -80,8 +97,8 @@ void Game::update()
 {
 	static sf::Clock c;
 	auto mousePos = sf::Mouse::getPosition(m_window);
-	mousePos.x /= quadSize;
-	mousePos.y /= quadSize;
+	mousePos.x /= m_quadSize;
+	mousePos.y /= m_quadSize;
 
 	mousePos.x = std::max(std::min(mousePos.x, m_size.x -1), 0);
 	mousePos.y = std::max(std::min(mousePos.y, m_size.y -1), 0);
@@ -99,7 +116,7 @@ void Game::update()
 		}
 
 		if(currentCell == Cell::mine)
-			std::cout << "loss\n";
+			m_loss = true;
 
 		if(currentCell == Cell::empty)
 			floodFill(mousePos.x, mousePos.y);
@@ -123,7 +140,7 @@ void Game::update()
 		for(auto& position : m_flagPositions)
 			if(m_cells[index(position.x, position.y)] != Cell::mine)
 				return;
-		std::cout << "win!";
+		m_win = true;
 	}
 
 }
@@ -134,13 +151,31 @@ void Game::generate()
 	rng.seed(std::time(nullptr));
 	std::uniform_int_distribution<> dist(0, 9);
 
+	m_cells.clear();
+	m_playerCells.clear();
+	m_cellsVAO.clear();
+
+	m_win = false;
+	m_loss = false;
+	m_flagCount = 0;
+	m_mineCount = 0;
+
+	m_cellsVAO.resize(m_size.x * m_size.y * 4);
+
+	for(int y = 0; y < m_size.y; y++)
+		for(int x = 0; x < m_size.x; x++)
+		{
+			m_cells.push_back(Cell::empty);
+			m_playerCells.push_back(Cell::blank);
+		}
+
 	//add mines
 	for(auto& cell : m_cells)
 	{
-		if(dist(rng) == 0)
+		if(dist(rng) > 6)
 		{
 			cell = Cell::mine;
-			m_mineCount++;
+			++m_mineCount;
 		}
 	}
 		
@@ -175,7 +210,7 @@ void Game::generate()
 	}
 
 	//texture
-	static std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{quadSize, 0.f},{quadSize, quadSize},{0.f, quadSize}}; //top left -> bottom left cw
+	std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{m_quadSize, 0.f},{m_quadSize, m_quadSize},{0.f, m_quadSize}}; //top left -> bottom left cw
 	for(int y = 0; y < m_size.y; y++)
 	for(int x = 0; x < m_size.x; x++)
 	{
@@ -185,7 +220,7 @@ void Game::generate()
 		sf::Vertex* vertex = &m_cellsVAO[index(x, y) * 4];
 		for(int i = 0; i < 4; i++)
 		{
-			vertex[i].position  = (quadSize * position) + quadTemplate[i];
+			vertex[i].position  = (m_quadSize * position) + quadTemplate[i];
 			vertex[i].texCoords.x = quadTexcoords[i].x + textureOffset * 16;
 			vertex[i].texCoords.y = quadTexcoords[i].y;
 		}
@@ -194,7 +229,7 @@ void Game::generate()
 
 void Game::changeCell(int x, int y, Cell newCell)
 {
-	static std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{quadSize, 0.f},{quadSize, quadSize},{0.f, quadSize}}; //top left -> bottom left cw
+	std::vector<sf::Vector2f> quadTemplate = {{0.f, 0.f},{m_quadSize, 0.f},{m_quadSize, m_quadSize},{0.f, m_quadSize}}; //top left -> bottom left cw
 
 	if(newCell == Cell::flag && m_playerCells[index(x, y)] != Cell::flag)
 	{
@@ -216,7 +251,7 @@ void Game::changeCell(int x, int y, Cell newCell)
 	sf::Vertex* vertex = &m_cellsVAO[index(x, y) * 4];
 	for(int i = 0; i < 4; i++)
 	{
-		vertex[i].position = (quadSize * position) + quadTemplate[i];
+		vertex[i].position = (m_quadSize * position) + quadTemplate[i];
 		vertex[i].texCoords.x = quadTexcoords[i].x + textureOffset * 16;
 		vertex[i].texCoords.y = quadTexcoords[i].y;
 	}
@@ -276,7 +311,7 @@ void Game::changeSurrounding(int x, int y, int cellNumber)
 
 		if(cell == Cell::mine && playerCell != Cell::flag)
 		{
-			std::cout << "loss\n";
+			m_loss = true;
 			return;
 		}
 
@@ -286,7 +321,7 @@ void Game::changeSurrounding(int x, int y, int cellNumber)
 
 	if(flagCount != cellNumber)
 	{
-		std::cout << "loss\n";
+		m_loss = true;
 		return;
 	}
 
