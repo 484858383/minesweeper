@@ -78,22 +78,13 @@ void Game::run()
 		if(!m_loss && !m_win)
 			update();
 
-		if(m_loss && !stop)
+		if((m_loss || m_win) && !stop)
 		{
 			for(int y = 0; y < m_size.y; y++)
 			for(int x = 0; x < m_size.x; x++)
 				changeCell(x, y, m_cells[index(x, y)]);
 			stop = true;
-			std::cout << "you lose, press R to play again\n";
-		}
-
-		if(m_win && !stop)
-		{
-			for(int y = 0; y < m_size.y; y++)
-			for(int x = 0; x < m_size.x; x++)
-				changeCell(x, y, m_cells[index(x, y)]);
-			stop = true;
-			std::cout << "you win, press R to play again\n";
+			std::cout << (m_win ? "you win" : "you lose") << ", press R to play again\n";
 		}
 
 		for(auto& button : m_buttons)
