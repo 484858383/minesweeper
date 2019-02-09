@@ -130,10 +130,10 @@ void Game::update()
 	mousePos.x /= m_quadSize;
 	mousePos.y /= m_quadSize;
 
-	mousePos.x = std::max(std::min(mousePos.x, m_size.x -1), 0);
+	mousePos.x = std::max(std::min(mousePos.x, m_size.x), 0);
 	mousePos.y = std::max(std::min(mousePos.y, m_size.y -1), 0);
 
-	if(mousePos.x > m_size.x - 1)
+	if(mousePos.x >= m_size.x)
 		return;
 
 	if(sf::Mouse::isButtonPressed(sf::Mouse::Left) && c.getElapsedTime().asSeconds() >= 0.15f)
@@ -195,6 +195,8 @@ void Game::generate()
 	m_loss = false;
 	m_flagCount = 0;
 	m_mineCount = 0;
+	m_clock.restart();
+	m_flagPositions.clear();
 
 	m_cellsVAO.resize(m_size.x * m_size.y * 4);
 
