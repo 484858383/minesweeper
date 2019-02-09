@@ -50,7 +50,7 @@ Game::Game()
 	m_buttons.emplace_back(std::make_unique<Button>("Intermediate", sf::Vector2f(128, 32), [&]() {m_size = {16, 16}; m_quadSize = 45.f; m_mineDensity = 50; m_difficulty = 1; generate(); }));
 	m_buttons.back()->setPosition({860, 672});
 
-	m_buttons.emplace_back(std::make_unique<Button>("Expert", sf::Vector2f(128, 32), [&]() {m_size = {30, 24}; m_quadSize = 30.f; m_mineDensity = 100; m_difficulty = 2; generate(); }));
+	m_buttons.emplace_back(std::make_unique<Button>("Expert", sf::Vector2f(128, 32), [&]() {m_size = {24, 24}; m_quadSize = 30.f; m_mineDensity = 100; m_difficulty = 2; generate(); }));
 	m_buttons.back()->setPosition({992, 672});
 
 	(*m_buttons[m_difficulty])(); //dereference ->> call () operator
@@ -184,8 +184,8 @@ void Game::generate()
 {
 	std::mt19937 rng;
 	rng.seed(std::time(nullptr));
-	std::uniform_int_distribution<> xRand(0, m_size.x - 1);
-	std::uniform_int_distribution<> yRand(0, m_size.y - 1);
+	std::uniform_int_distribution<> xRand(0, m_size.x -1);
+	std::uniform_int_distribution<> yRand(0, m_size.y -1);
 
 	m_cells.clear();
 	m_playerCells.clear();
@@ -212,14 +212,13 @@ void Game::generate()
 	{
 		int x = xRand(rng);
 		int y = yRand(rng);
-
 		auto& cell = m_cells[index(x, y)];
 
-		if(cell != Cell::empty)
-			continue;
-
-		cell = Cell::mine;
-		++m_mineCount;
+		if(cell == Cell::empty)
+		{
+			++m_mineCount;
+			cell = Cell::mine;
+		}
 	}
 		
 	//add numbers
